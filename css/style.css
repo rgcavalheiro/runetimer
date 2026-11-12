@@ -588,6 +588,15 @@ input[type="number"]:focus {
   gap: 0.4rem;
 }
 
+.seg-vocs {
+  grid-template-columns: 1fr 1fr;
+}
+
+.seg-vocs .seg-btn {
+  font-size: 0.8rem;
+  padding: 0.65rem 0.35rem;
+}
+
 .seg-btn {
   appearance: none;
   border: 1px solid var(--line);

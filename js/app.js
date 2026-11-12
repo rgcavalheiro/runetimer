@@ -4,7 +4,9 @@
   // Tibia 7.1 / classic: 1 mana por tick (nao o 2/3s do tibia moderno)
   var REGEN = {
     druid: { mana: 1, seconds: 6, label: "Druid 7.1: 1 mana a cada 6s" },
-    elder: { mana: 1, seconds: 4, label: "Elder Druid 7.1: 1 mana a cada 4s" }
+    elder: { mana: 1, seconds: 4, label: "Elder Druid 7.1: 1 mana a cada 4s" },
+    paladin: { mana: 1, seconds: 8, label: "Paladin 7.1: 1 mana a cada 8s" },
+    royal: { mana: 1, seconds: 6, label: "Royal Paladin 7.1: 1 mana a cada 6s" }
   };
 
   var STORAGE_KEY = "runetimer-settings-v4";
@@ -209,7 +211,7 @@
       }
       if (!raw) return;
       var data = JSON.parse(raw);
-      if (data.vocation === "druid" || data.vocation === "elder") {
+      if (REGEN[data.vocation]) {
         state.vocation = data.vocation;
       }
       if (Number.isFinite(data.runes) && data.runes > 0) state.runes = data.runes | 0;
@@ -1090,7 +1092,8 @@
     if (els.segBtns) {
       els.segBtns.forEach(function (btn) {
         btn.onclick = function () {
-          state.vocation = btn.getAttribute("data-voc") || "elder";
+          state.vocation = btn.getAttribute("data-voc") || "druid";
+          if (!REGEN[state.vocation]) state.vocation = "druid";
           syncInputs();
           saveSettings();
           if (!state.running) renderIdle();
