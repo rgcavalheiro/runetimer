@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RuneTimer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="preload" href="sounds/bell.mp3" as="audio">
+  <link rel="preload" href="sounds/hunger.mp3" as="audio">
+</head>
+<body>
+  <div class="app" id="app">
+    <header class="header">
+      <h1 class="brand">RuneTimer</h1>
+      <p class="tagline">mana regenerando, runas esperando</p>
+    </header>
+
+    <main class="stage">
+      <div class="vessels">
+        <div class="flask-wrap" id="flaskWrap" aria-live="polite">
+          <div class="vessel-label">Mana</div>
+          <div class="flask-stage">
+            <div class="potion" aria-label="Frasco de mana">
+              <div class="potion-aura"></div>
+              <div class="potion-shadow"></div>
+              <svg class="flask-svg" viewBox="0 0 200 280" role="img">
+                <defs>
+                  <linearGradient id="manaGrad" x1="0" y1="1" x2="0" y2="0">
+                    <stop offset="0%" stop-color="#05485c" />
+                    <stop offset="35%" stop-color="#0e8fad" />
+                    <stop offset="70%" stop-color="#2ad4ef" />
+                    <stop offset="100%" stop-color="#c9fbff" />
+                  </linearGradient>
+                  <linearGradient id="glassFill" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stop-color="#ffffff" stop-opacity="0.18" />
+                    <stop offset="40%" stop-color="#ffffff" stop-opacity="0.04" />
+                    <stop offset="100%" stop-color="#9fd7d2" stop-opacity="0.07" />
+                  </linearGradient>
+                  <clipPath id="flaskClip">
+                    <path d="M78 34 C78 34 72 26 72 22 C72 18 78 16 100 16 C122 16 128 18 128 22 C128 26 122 34 122 34 L118 108 C118 108 174 145 174 196 C174 242 142 262 100 262 C58 262 26 242 26 196 C26 145 82 108 82 108 Z" />
+                  </clipPath>
+                </defs>
+                <path class="flask-outline" d="M78 34 C78 34 72 26 72 22 C72 18 78 16 100 16 C122 16 128 18 128 22 C128 26 122 34 122 34 L118 108 C118 108 174 145 174 196 C174 242 142 262 100 262 C58 262 26 242 26 196 C26 145 82 108 82 108 Z" fill="url(#glassFill)" />
+                <g clip-path="url(#flaskClip)">
+                  <rect id="liquid" class="liquid-rect" x="20" y="262" width="160" height="0" fill="url(#manaGrad)" />
+                  <ellipse id="wave" class="liquid-wave" cx="100" cy="262" rx="78" ry="8" fill="#d8fbff" fill-opacity="0.35" />
+                  <g class="bubbles-svg" id="bubbles">
+                    <circle cx="70" cy="230" r="2.2" /><circle cx="95" cy="210" r="1.6" /><circle cx="120" cy="235" r="2.8" />
+                    <circle cx="85" cy="190" r="1.8" /><circle cx="110" cy="175" r="2.1" /><circle cx="78" cy="160" r="1.4" />
+                  </g>
+                  <ellipse class="glass-gloss" cx="68" cy="175" rx="14" ry="48" />
+                </g>
+                <path class="flask-stroke" d="M78 34 C78 34 72 26 72 22 C72 18 78 16 100 16 C122 16 128 18 128 22 C128 26 122 34 122 34 L118 108 C118 108 174 145 174 196 C174 242 142 262 100 262 C58 262 26 242 26 196 C26 145 82 108 82 108 Z" fill="none" />
+                <path class="flask-mouth" d="M72 22 C72 18 78 16 100 16 C122 16 128 18 128 22" fill="none" />
+                <g class="finish-mark"><line x1="82" y1="46" x2="90" y2="46" /><line x1="110" y1="46" x2="118" y2="46" /></g>
+              </svg>
+            </div>
+            <div class="mana-nudge" aria-label="Ajuste fino de mana">
+              <button type="button" class="nudge-btn" id="btnManaUp" title="+1 mana">+</button>
+              <button type="button" class="nudge-btn" id="btnManaDown" title="-1 mana">-</button>
+              <button type="button" class="nudge-btn nudge-bell" id="btnBell" title="Testar sino" aria-label="Testar sino"><span class="bell-icon"></span></button>
+            </div>
+          </div>
+          <div class="readout">
+            <div class="time" id="timeLeft">0:00</div>
+            <div class="mana-line" id="manaLine">0 / 0 mana</div>
+            <div class="status" id="statusText">Pronto pra craftar</div>
+          </div>
+        </div>
+
+        <div class="flask-wrap hunger-wrap" id="hungerWrap" aria-live="polite">
+          <div class="vessel-label">Fome</div>
+          <div class="flask-stage">
+            <div class="potion hunger-potion" aria-label="Frasco de fome">
+              <div class="potion-aura hunger-aura"></div>
+              <div class="potion-shadow"></div>
+              <svg class="flask-svg" viewBox="0 0 200 280" role="img">
+                <defs>
+                  <linearGradient id="foodGrad" x1="0" y1="1" x2="0" y2="0">
+                    <stop offset="0%" stop-color="#5a2a12" />
+                    <stop offset="40%" stop-color="#b85a22" />
+                    <stop offset="75%" stop-color="#e8a04a" />
+                    <stop offset="100%" stop-color="#ffd59a" />
+                  </linearGradient>
+                  <linearGradient id="glassFillFood" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stop-color="#ffffff" stop-opacity="0.18" />
+                    <stop offset="40%" stop-color="#ffffff" stop-opacity="0.04" />
+                    <stop offset="100%" stop-color="#d7c2a0" stop-opacity="0.08" />
+                  </linearGradient>
+                  <clipPath id="hungerClip">
+                    <path d="M78 34 C78 34 72 26 72 22 C72 18 78 16 100 16 C122 16 128 18 128 22 C128 26 122 34 122 34 L118 108 C118 108 174 145 174 196 C174 242 142 262 100 262 C58 262 26 242 26 196 C26 145 82 108 82 108 Z" />
+                  </clipPath>
+                </defs>
+                <path class="flask-outline" d="M78 34 C78 34 72 26 72 22 C72 18 78 16 100 16 C122 16 128 18 128 22 C128 26 122 34 122 34 L118 108 C118 108 174 145 174 196 C174 242 142 262 100 262 C58 262 26 242 26 196 C26 145 82 108 82 108 Z" fill="url(#glassFillFood)" />
+                <g clip-path="url(#hungerClip)">
+                  <rect id="hungerLiquid" class="liquid-rect" x="20" y="262" width="160" height="0" fill="url(#foodGrad)" />
+                  <ellipse id="hungerWave" class="liquid-wave" cx="100" cy="262" rx="78" ry="8" fill="#ffe0b0" fill-opacity="0.35" />
+                  <ellipse class="glass-gloss" cx="68" cy="175" rx="14" ry="48" />
+                </g>
+                <path class="flask-stroke" d="M78 34 C78 34 72 26 72 22 C72 18 78 16 100 16 C122 16 128 18 128 22 C128 26 122 34 122 34 L118 108 C118 108 174 145 174 196 C174 242 142 262 100 262 C58 262 26 242 26 196 C26 145 82 108 82 108 Z" fill="none" />
+                <path class="flask-mouth" d="M72 22 C72 18 78 16 100 16 C122 16 128 18 128 22" fill="none" />
+                <g class="finish-mark hunger-full-mark"><line x1="82" y1="46" x2="90" y2="46" /><line x1="110" y1="46" x2="118" y2="46" /></g>
+              </svg>
+            </div>
+            <div class="food-nudge" aria-label="Comidas">
+              <button type="button" class="food-btn" id="btnMeat" title="Meat (+3 min)">
+                <img class="food-sprite" src="assets/meat.png" alt="Meat" width="32" height="32">
+                <span class="food-name">Meat</span>
+              </button>
+              <button type="button" class="food-btn" id="btnHam" title="Ham (+6 min)">
+                <img class="food-sprite" src="assets/ham.png" alt="Ham" width="32" height="32">
+                <span class="food-name">Ham</span>
+              </button>
+            </div>
+          </div>
+          <div class="readout">
+            <div class="time hunger-time" id="hungerTime">0:00</div>
+            <div class="mana-line hunger-line" id="hungerLine">0 / 20:00</div>
+            <div class="status" id="hungerStatus">Com fome</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button type="button" class="btn btn-primary" id="btnStart">Craftar</button>
+        <button type="button" class="btn btn-ghost" id="btnPause" disabled>Pause</button>
+        <button type="button" class="btn btn-ghost" id="btnReset">Reset</button>
+        <button type="button" class="btn btn-pip" id="btnPip" title="Abrir mini janela por cima">Miniwindow</button>
+      </div>
+    </main>
+
+    <section class="settings" id="settings">
+      <h2>Configuração</h2>
+      <div class="grid">
+        <label>
+          <span>Runas por ciclo</span>
+          <input type="number" id="cfgRunes" min="1" max="100" value="3">
+        </label>
+        <label>
+          <span>Mana por runa</span>
+          <input type="number" id="cfgMana" min="1" max="1000" value="100">
+        </label>
+        <label class="vocation">
+          <span>Vocação</span>
+          <div class="seg" role="group" aria-label="Vocação">
+            <button type="button" class="seg-btn active" data-voc="druid">Druid</button>
+            <button type="button" class="seg-btn" data-voc="elder">Elder Druid</button>
+          </div>
+        </label>
+        <label>
+          <span>Meat (segundos)</span>
+          <input type="number" id="cfgMeatSec" min="1" max="3600" value="180">
+        </label>
+        <label>
+          <span>Ham (segundos)</span>
+          <input type="number" id="cfgHamSec" min="1" max="3600" value="360">
+        </label>
+        <label>
+          <span>Fome máxima (segundos)</span>
+          <input type="number" id="cfgMaxFoodSec" min="60" max="7200" value="1200">
+        </label>      </div>
+      <p class="regen-hint" id="regenHint"></p>
+    </section>
+
+    <section class="settings sync" id="syncBox">
+      <h2>Sincronizar com o jogo</h2>
+      <div class="grid grid-2">
+        <label>
+          <span>Mana atual</span>
+          <input type="number" id="cfgCurrentMana" min="0" max="9999" value="0" placeholder="ex: 161">
+        </label>
+        <label class="sync-elapsed">
+          <span>Tempo passado (mm:ss)</span>
+          <input type="text" id="cfgElapsed" value="0:00" placeholder="ex: 16:00" inputmode="numeric">
+        </label>
+      </div>
+      <p class="sync-hint">Preenche o que você vê no client e aperta sincronizar. A mana atual manda no progresso; o tempo ajuda a bater o relógio.</p>
+      <button type="button" class="btn btn-primary btn-block" id="btnSync">Sincronizar</button>
+    </section>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
