@@ -154,15 +154,18 @@ body::before {
 .food-btn {
   appearance: none;
   width: 46px;
+  min-height: 58px;
+  box-sizing: border-box;
   border: 1px solid rgba(232, 160, 74, 0.35);
   background: rgba(28, 18, 10, 0.88);
   color: #ffd59a;
   border-radius: 10px;
-  padding: 0.35rem 0.2rem 0.4rem;
+  padding: 0.3rem 0.2rem 0.35rem;
   cursor: pointer;
   display: grid;
   justify-items: center;
-  gap: 0.2rem;
+  align-content: center;
+  gap: 0.18rem;
   transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease;
 }
 
@@ -180,17 +183,19 @@ body::before {
   font-size: 0.65rem;
   font-weight: 600;
   letter-spacing: 0.02em;
+  line-height: 1;
 }
 
 .food-sprite {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   display: block;
   object-fit: contain;
+  object-position: center;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
-  border-radius: 4px;
-  background: #1a1a1a;
+  border-radius: 3px;
+  background: transparent;
 }
 
 @media (max-width: 520px) {
@@ -799,14 +804,15 @@ body.pip-mode .bell-icon {
 
 body.pip-mode .food-btn {
   width: 30px;
+  min-height: 30px;
   padding: 0.12rem;
   border-radius: 6px;
   gap: 0;
 }
 
 body.pip-mode .food-sprite {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
 }
 
 body.pip-mode .readout {
