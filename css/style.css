@@ -257,6 +257,56 @@ body::before {
   color: #fff1c8;
 }
 
+.nudge-hunger-sfx {
+  margin-top: 0.1rem;
+  color: #ffb07a;
+  border-color: rgba(255, 160, 100, 0.4);
+}
+
+.nudge-hunger-sfx:hover {
+  border-color: rgba(255, 180, 120, 0.65);
+  color: #ffd0b0;
+}
+
+.hunger-sfx-icon {
+  display: block;
+  width: 14px;
+  height: 10px;
+  margin: 0 auto;
+  position: relative;
+  border: 2px solid currentColor;
+  border-radius: 50% 50% 45% 45%;
+  box-sizing: border-box;
+}
+
+.hunger-sfx-icon::before,
+.hunger-sfx-icon::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 3px;
+  height: 3px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  transform: translateY(-50%);
+  box-sizing: border-box;
+}
+
+.hunger-sfx-icon::before { left: -6px; }
+.hunger-sfx-icon::after { right: -6px; }
+
+.nudge-hunger-reset {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #ffb07a;
+  border-color: rgba(255, 160, 100, 0.35);
+}
+
+.nudge-hunger-reset:hover {
+  border-color: rgba(255, 180, 120, 0.6);
+  color: #ffd0b0;
+}
+
 .bell-icon {
   display: block;
   width: 14px;

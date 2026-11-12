@@ -71,6 +71,8 @@
       btnBell: doc.getElementById("btnBell"),
       btnMeat: doc.getElementById("btnMeat"),
       btnHam: doc.getElementById("btnHam"),
+      btnHungerSfx: doc.getElementById("btnHungerSfx"),
+      btnHungerReset: doc.getElementById("btnHungerReset"),
       hungerWrap: doc.getElementById("hungerWrap"),
       hungerLiquid: doc.getElementById("hungerLiquid"),
       hungerWave: doc.getElementById("hungerWave"),
@@ -950,9 +952,10 @@
     playAudioClip(ensureBell());
   }
 
-  function playHungerAlert() {
-    if (state.hungerAlertPlayed) return;
-    state.hungerAlertPlayed = true;
+  function playHungerAlert(force) {
+    if (!force && state.hungerAlertPlayed) return;
+    if (!force) state.hungerAlertPlayed = true;
+    unlockAudio();
     playAudioClip(ensureHungerSfx());
   }
 
@@ -1006,6 +1009,23 @@
     state.raf = requestAnimationFrame(renderTick);
   }
 
+  function resetHunger() {
+    syncHungerClock();
+    state.foodLeftMs = 0;
+    state.foodUpdatedAt = performance.now();
+    state.hungerAlertPlayed = false;
+    renderHunger();
+    // se estava regenerando, congela por falta de fome
+    if (state.running && !state.paused) {
+      freezeManaForHunger();
+    } else if (!state.ready) {
+      state.hungerBlocked = true;
+      if (els.statusText) els.statusText.textContent = "Sem fome - mana parada";
+      updatePauseButton();
+    }
+    saveSettings();
+  }
+
   function resetCycle() {
     if (state.raf) cancelAnimationFrame(state.raf);
     state.raf = 0;
@@ -1013,7 +1033,13 @@
     state.paused = false;
     state.hungerBlocked = false;
     state.pausedElapsedMs = 0;
+    // Reset geral: mana + fome
+    state.foodLeftMs = 0;
+    state.foodUpdatedAt = performance.now();
+    state.hungerAlertPlayed = false;
     renderIdle();
+    renderHunger();
+    saveSettings();
   }
 
   function readConfigFromInputs(opts) {
@@ -1056,6 +1082,12 @@
     if (els.btnBell) els.btnBell.onclick = function () { playDing(); };
     if (els.btnMeat) els.btnMeat.onclick = function () { eatFood("meat"); };
     if (els.btnHam) els.btnHam.onclick = function () { eatFood("ham"); };
+    if (els.btnHungerSfx) {
+      els.btnHungerSfx.onclick = function () { playHungerAlert(true); };
+    }
+    if (els.btnHungerReset) {
+      els.btnHungerReset.onclick = function () { resetHunger(); };
+    }
     if (els.btnSync) {
       // captura o valor NO POINTERDOWN, antes do foco sair e o tick sobrescrever
       els.btnSync.onpointerdown = function () { snapshotSyncInputs(); };
@@ -1264,8 +1296,16 @@
     }
     var popMeat = popup.document.getElementById("btnMeat");
     var popHam = popup.document.getElementById("btnHam");
+    var popHungerSfx = popup.document.getElementById("btnHungerSfx");
+    var popHungerReset = popup.document.getElementById("btnHungerReset");
     if (popMeat) popMeat.onclick = function () { eatFood("meat"); };
     if (popHam) popHam.onclick = function () { eatFood("ham"); };
+    if (popHungerSfx) {
+      popHungerSfx.onclick = function () { playHungerAlert(true); };
+    }
+    if (popHungerReset) {
+      popHungerReset.onclick = function () { resetHunger(); };
+    }
 
     syncPopupView();
   }
