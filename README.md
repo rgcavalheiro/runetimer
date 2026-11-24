@@ -19,6 +19,7 @@ Controla o tempo de regeneração de mana com um frasco que enche, avisa com sin
 | Sync | Ajusta pela mana atual do client |
 | Miniwindow | Janelinha por cima (Picture-in-Picture) |
 | Persistência | Lembra configs, mana e fome no refresh |
+| Online | Contador via Worker (segredo só no servidor) |
 
 ---
 
@@ -73,13 +74,27 @@ Tudo isso é ajustável na tela de configuração.
 runetimer/
 ├── index.html
 ├── abrir.bat
+├── api/presence.js        # contador online (Vercel Function)
+├── package.json           # deps da API
 ├── css/style.css
-├── js/app.js
-├── assets/          # ícones Meat / Ham
-└── sounds/          # sino + alerta de fome
+├── js/
+│   ├── app.js
+│   ├── config.js          # presenceUrl (publico, sem senha)
+│   └── config.example.js
+├── assets/                # ícones Meat / Ham
+└── sounds/                # sino + alerta de fome
 ```
 
-Sem build, sem dependências — só HTML/CSS/JS.
+Frontend: HTML/CSS/JS. Hosting recomendado: **Vercel** (site + `/api/presence`).
+Segredo do banco: **somente** em Environment Variable `DATABASE_URL` na Vercel.
+
+### Contador online (Vercel)
+
+1. No deploy da Vercel, cria `DATABASE_URL` com a connection string da role `presence_web`
+2. `js/config.js` já aponta pra `/api/presence`
+3. Pronto — o badge online aparece no mesmo domínio
+
+Se `presenceUrl` estiver vazio, o badge fica oculto.
 
 ---
 

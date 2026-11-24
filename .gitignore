@@ -14,3 +14,12 @@ Desktop.ini
 *.log
 *.tmp
 .cache/
+node_modules/
+.vercel/
+
+# Secrets / env locais
+.env
+.env.*
+!.env.example
+*.pem
+*.key

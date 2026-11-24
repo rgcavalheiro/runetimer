@@ -37,7 +37,6 @@
     pausedElapsedMs: 0,
     raf: 0,
     pipWindow: null,
-    audioCtx: null,
     bellAudio: null,
     hungerAudio: null,
     hungerAlertPlayed: false,
@@ -47,10 +46,6 @@
   };
 
   var els = {};
-
-  function $(id) {
-    return document.getElementById(id);
-  }
 
   function bindElements(root) {
     var doc = root || document;
@@ -440,8 +435,6 @@
     // para a regen de mana como no tibia (sem food = sem regen)
     if (state.hungerBlocked) return;
 
-    var shouldAlert = true;
-
     if (state.running && !state.paused) {
       if (state.raf) cancelAnimationFrame(state.raf);
       state.raf = 0;
@@ -452,7 +445,7 @@
       if (els.statusText) els.statusText.textContent = "Sem fome - mana parada";
       if (els.btnStart) els.btnStart.textContent = "Craftar";
       updatePauseButton();
-      if (shouldAlert) playHungerAlert();
+      playHungerAlert();
       return;
     }
 
@@ -463,7 +456,7 @@
         els.statusText.textContent = "Sem fome - mana parada";
       }
       updatePauseButton();
-      if (shouldAlert) playHungerAlert();
+      playHungerAlert();
     }
   }
 
@@ -1150,18 +1143,65 @@
     });
   }
 
+  function fitPipContent(win) {
+    if (!win || win.closed) return;
+    var doc = win.document;
+    var app = doc.getElementById("app");
+    if (!app) return;
+
+    app.style.transform = "none";
+    app.style.marginBottom = "0";
+
+    var pad = 6;
+    var availW = Math.max(120, (win.innerWidth || doc.documentElement.clientWidth || 240) - pad);
+    var availH = Math.max(160, (win.innerHeight || doc.documentElement.clientHeight || 360) - pad);
+    var rect = app.getBoundingClientRect();
+    var needW = Math.max(app.scrollWidth, rect.width, 1);
+    var needH = Math.max(app.scrollHeight, rect.height, 1);
+
+    // preenche a mini janela (sobe e desce a escala)
+    var scale = Math.min(availW / needW, availH / needH);
+    scale = Math.max(0.75, Math.min(scale, 2.4));
+
+    app.style.transformOrigin = "top center";
+    if (Math.abs(scale - 1) > 0.02) {
+      app.style.transform = "scale(" + scale.toFixed(4) + ")";
+      app.style.marginBottom = -(needH * (1 - scale)) + "px";
+    } else {
+      app.style.transform = "";
+      app.style.marginBottom = "";
+    }
+  }
+
+  function bindPipFit(win) {
+    if (!win || win.closed) return;
+    var run = function () { fitPipContent(win); };
+    win.addEventListener("resize", run);
+    if (win.visualViewport) {
+      win.visualViewport.addEventListener("resize", run);
+    }
+    var links = win.document.querySelectorAll('link[rel="stylesheet"]');
+    for (var i = 0; i < links.length; i++) {
+      links[i].addEventListener("load", run);
+    }
+    run();
+    setTimeout(run, 60);
+    setTimeout(run, 200);
+    setTimeout(run, 500);
+  }
+
   async function openMiniwindow() {
     if (state.pipWindow && !state.pipWindow.closed) {
       try { state.pipWindow.focus(); } catch (e) { /* ignore */ }
       return;
     }
 
-    // Document Picture-in-Picture (Chrome/Edge) ? janela sempre por cima
+    // Document Picture-in-Picture (Chrome/Edge) - janela sempre por cima
     if (window.documentPictureInPicture && window.documentPictureInPicture.requestWindow) {
       try {
         var pip = await window.documentPictureInPicture.requestWindow({
-          width: 240,
-          height: 360
+          width: 280,
+          height: 420
         });
         state.pipWindow = pip;
         copyStyles(pip.document);
@@ -1169,10 +1209,13 @@
 
         var app = els.app;
         pip.document.body.appendChild(app);
+        ensurePresenceUi(pip.document);
+        pingPresence();
 
         bindElements(pip.document);
         syncInputs();
         wireEvents();
+        bindPipFit(pip);
         if (!state.running) {
           if (state.ready) {
             setLiquid(1);
@@ -1192,6 +1235,7 @@
           bindElements(document);
           syncInputs();
           wireEvents();
+          scheduleFit();
           if (!state.running) {
             if (state.ready) {
               setLiquid(1);
@@ -1211,7 +1255,7 @@
     var popup = window.open(
       "",
       "runetimer-mini",
-      "popup=yes,width=240,height=360,resizable=yes"
+      "popup=yes,width=280,height=420,resizable=yes"
     );
     if (!popup) {
       alert("O navegador bloqueou a mini janela. Permita pop-ups pra este site.");
@@ -1220,14 +1264,19 @@
     state.pipWindow = popup;
     popup.document.open();
     popup.document.write(
-      "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>RuneTimer</title></head>" +
-      "<body class=\"pip-mode\"></body></html>"
+      "<!DOCTYPE html><html style=\"height:100%\"><head><meta charset=\"utf-8\">" +
+      "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" +
+      "<title>RuneTimer</title></head>" +
+      "<body class=\"pip-mode\" style=\"height:100%;margin:0\"></body></html>"
     );
     popup.document.close();
     copyStyles(popup.document);
 
     var clone = els.app.cloneNode(true);
     popup.document.body.appendChild(clone);
+    ensurePresenceUi(popup.document);
+    pingPresence();
+    bindPipFit(popup);
 
     // Controla o clone; a janela principal continua funcionando tambem
     var popEls = {
@@ -1357,6 +1406,126 @@
     });
   }
 
+  // Presenca online via endpoint HTTP (segredo fica no worker, nunca no browser)
+  var PRESENCE_PING_MS = 25000;
+  var presenceTimer = 0;
+  var presenceSessionId = "";
+
+  function presenceUrl() {
+    var cfg = window.RUNETIMER_CONFIG || {};
+    var url = typeof cfg.presenceUrl === "string" ? cfg.presenceUrl.trim() : "";
+    return url;
+  }
+
+  function ensurePresenceUi(doc) {
+    if (!doc || !doc.body) return null;
+    var existing = doc.getElementById("onlinePresence");
+    if (existing) return existing;
+
+    var wrap = doc.createElement("div");
+    wrap.className = "online-presence";
+    wrap.id = "onlinePresence";
+    wrap.title = "Pessoas online agora";
+    wrap.setAttribute("aria-live", "polite");
+    wrap.hidden = !presenceUrl();
+    wrap.innerHTML =
+      '<svg class="online-presence-icon" viewBox="0 0 24 24" aria-hidden="true">' +
+      '<path fill="currentColor" d="M12 5c-5 0-9.3 3.1-11 7.5C2.7 16.9 7 20 12 20s9.3-3.1 11-7.5C21.3 8.1 17 5 12 5zm0 12.5c-2.8 0-5-2.2-5-5s2.2-5 5-5 5 2.2 5 5-2.2 5-5 5zm0-8a3 3 0 100 6 3 3 0 000-6z"/>' +
+      "</svg>" +
+      '<span class="online-presence-count" id="onlineCount">-</span>';
+    doc.body.appendChild(wrap);
+    return wrap;
+  }
+
+  function setOnlineCount(n) {
+    var label = Number.isFinite(n) && n > 0 ? String(n) : "-";
+    var nodes = [];
+    var main = document.getElementById("onlineCount");
+    if (main) nodes.push(main);
+    if (state.pipWindow && !state.pipWindow.closed) {
+      try {
+        var pipCount = state.pipWindow.document.getElementById("onlineCount");
+        if (pipCount) nodes.push(pipCount);
+      } catch (e) { /* ignore */ }
+    }
+    for (var i = 0; i < nodes.length; i++) nodes[i].textContent = label;
+  }
+
+  function syncPresenceVisibility() {
+    var show = !!presenceUrl();
+    var main = document.getElementById("onlinePresence");
+    if (main) main.hidden = !show;
+    if (state.pipWindow && !state.pipWindow.closed) {
+      try {
+        var pip = state.pipWindow.document.getElementById("onlinePresence");
+        if (pip) pip.hidden = !show;
+      } catch (e) { /* ignore */ }
+    }
+  }
+
+  function getPresenceSessionId() {
+    var key = "runetimer-presence-id";
+    try {
+      var saved = sessionStorage.getItem(key);
+      if (saved && saved.length > 10) return saved;
+      var id =
+        window.crypto && crypto.randomUUID
+          ? crypto.randomUUID()
+          : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+              var r = (Math.random() * 16) | 0;
+              var v = c === "x" ? r : (r & 0x3) | 0x8;
+              return v.toString(16);
+            });
+      sessionStorage.setItem(key, id);
+      return id;
+    } catch (e) {
+      return "00000000-0000-4000-8000-000000000001";
+    }
+  }
+
+  async function pingPresence() {
+    var url = presenceUrl();
+    syncPresenceVisibility();
+    if (!url) {
+      setOnlineCount(NaN);
+      return;
+    }
+    // file:// nao consegue falar com o endpoint; so conta no Pages/HTTP(S)
+    if (!/^https?:/i.test(window.location.protocol)) {
+      setOnlineCount(NaN);
+      return;
+    }
+    try {
+      if (!presenceSessionId) presenceSessionId = getPresenceSessionId();
+      var res = await fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: "application/json" },
+        body: JSON.stringify({ sessionId: presenceSessionId }),
+        mode: "cors",
+        cache: "no-store",
+        credentials: "omit"
+      });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      var data = await res.json();
+      var online = data && data.online != null ? Number(data.online) : NaN;
+      setOnlineCount(online);
+    } catch (err) {
+      console.warn("presence ping falhou:", err);
+    }
+  }
+
+  function startPresence() {
+    ensurePresenceUi(document);
+    syncPresenceVisibility();
+    if (!presenceUrl()) return;
+    pingPresence();
+    if (presenceTimer) clearInterval(presenceTimer);
+    presenceTimer = setInterval(pingPresence, PRESENCE_PING_MS);
+    document.addEventListener("visibilitychange", function () {
+      if (document.visibilityState === "visible") pingPresence();
+    });
+  }
+
   function init() {
     bindElements(document);
     loadSettings();
@@ -1365,6 +1534,7 @@
     restoreManaSession();
     renderHunger();
     startHungerLoop();
+    startPresence();
     window.addEventListener("beforeunload", saveSettings);
     window.addEventListener("pagehide", saveSettings);
     window.addEventListener("resize", scheduleFit);
