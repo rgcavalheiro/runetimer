@@ -17,6 +17,17 @@
   // no tibia a mana nao fica 0 depois de craftar ? sempre sobra 1
   var MIN_MANA = 1;
 
+  // Anti-AFK: classic desconecta ~15 min sem acao
+  var AFK_TOTAL_MS = 15 * 60 * 1000;
+  var AFK_WARN_MS = 14 * 60 * 1000;
+  var AFK_AMBIENTS = ["birds", "stream", "rain", "beach"];
+  var AFK_LABELS = {
+    birds: "campo (passaros)",
+    stream: "riacho",
+    rain: "chuva",
+    beach: "praia"
+  };
+
   // Tibia classic: Meat 180s, Ham 360s, full 1200s (20 min) ~ 3 ham
   var state = {
     vocation: "druid",
@@ -42,7 +53,14 @@
     hungerAlertPlayed: false,
     syncDirty: false,
     syncSnapMana: null,
-    syncSnapElapsed: null
+    syncSnapElapsed: null,
+    afkStartedAt: 0,
+    afkRaf: 0,
+    afkPaused: false,
+    afkPausedElapsedMs: 0,
+    afkAmbientKind: null,
+    afkAmbientAudio: null,
+    afkAmbientStarted: false
   };
 
   var els = {};
@@ -83,7 +101,12 @@
       cfgElapsed: doc.getElementById("cfgElapsed"),
       btnSync: doc.getElementById("btnSync"),
       regenHint: doc.getElementById("regenHint"),
-      segBtns: doc.querySelectorAll(".seg-btn")
+      segBtns: doc.querySelectorAll(".seg-btn"),
+      afkWrap: doc.getElementById("afkWrap"),
+      afkFill: doc.getElementById("afkFill"),
+      afkTime: doc.getElementById("afkTime"),
+      afkStatus: doc.getElementById("afkStatus"),
+      btnAfkPause: doc.getElementById("btnAfkPause")
     };
   }
 
@@ -494,6 +517,7 @@
     unlockAudio();
     renderHunger();
     saveSettings();
+    bumpAntiAfk();
     if (wasEmpty || state.hungerBlocked) resumeManaAfterEating();
   }
 
@@ -734,6 +758,7 @@
   }
 
   function togglePause() {
+    bumpAntiAfk();
     if (state.paused) resumeCycle();
     else if (state.running) pauseCycle();
   }
@@ -752,6 +777,7 @@
 
     writeSyncFields(sync.currentMana, elapsedFromMana);
     saveSettings();
+    bumpAntiAfk();
     resumeFromProgress(elapsedFromMana);
   }
 
@@ -824,6 +850,7 @@
 
   function nudgeMana(delta) {
     var wasRunning = state.running && !state.paused;
+    bumpAntiAfk();
     applyManaLevel(currentManaNow() + delta, { keepPaused: !wasRunning });
   }
 
@@ -923,6 +950,176 @@
     return Promise.resolve(audio);
   }
 
+  function stopAfkAmbient() {
+    if (state.afkAmbientAudio) {
+      try {
+        state.afkAmbientAudio.pause();
+        state.afkAmbientAudio.currentTime = 0;
+      } catch (e) { /* ignore */ }
+    }
+    state.afkAmbientAudio = null;
+    state.afkAmbientKind = null;
+    state.afkAmbientStarted = false;
+  }
+
+  function pickAfkAmbient() {
+    var i = Math.floor(Math.random() * AFK_AMBIENTS.length);
+    return AFK_AMBIENTS[i] || "rain";
+  }
+
+  function ensureAfkAmbient(kind) {
+    if (state.afkAmbientAudio && state.afkAmbientKind === kind) {
+      return state.afkAmbientAudio;
+    }
+    stopAfkAmbient();
+    var audio = new Audio(soundSrc("ambient-" + kind + ".mp3"));
+    audio.preload = "auto";
+    audio.loop = true;
+    audio.volume = 0.01;
+    state.afkAmbientAudio = audio;
+    state.afkAmbientKind = kind;
+    return audio;
+  }
+
+  function afkElapsedMs() {
+    if (state.afkPaused) return Math.max(0, state.afkPausedElapsedMs || 0);
+    if (!state.afkStartedAt) return 0;
+    return Math.max(0, performance.now() - state.afkStartedAt);
+  }
+
+  function afkVolumeForElapsed(elapsed) {
+    if (elapsed < AFK_WARN_MS) return 0;
+    if (elapsed >= AFK_TOTAL_MS) return 0.72;
+    var t = (elapsed - AFK_WARN_MS) / (AFK_TOTAL_MS - AFK_WARN_MS);
+    // curva suave: bem baixinho no inicio do aviso, sobe ate o fim
+    return 0.04 + Math.pow(clamp(t, 0, 1), 1.35) * 0.68;
+  }
+
+  function updateAfkPauseButton() {
+    if (!els.btnAfkPause) return;
+    if (state.afkPaused) {
+      els.btnAfkPause.textContent = "Continuar";
+      els.btnAfkPause.classList.add("is-paused");
+    } else {
+      els.btnAfkPause.textContent = "Pause";
+      els.btnAfkPause.classList.remove("is-paused");
+    }
+  }
+
+  function pauseAfkAmbientOnly() {
+    if (!state.afkAmbientAudio) return;
+    try {
+      state.afkAmbientAudio.pause();
+    } catch (e) { /* ignore */ }
+  }
+
+  function updateAfkAmbient(elapsed) {
+    if (state.afkPaused) {
+      pauseAfkAmbientOnly();
+      return;
+    }
+
+    if (elapsed < AFK_WARN_MS) {
+      if (state.afkAmbientStarted) stopAfkAmbient();
+      return;
+    }
+
+    if (!state.afkAmbientStarted) {
+      var kind = pickAfkAmbient();
+      var audio = ensureAfkAmbient(kind);
+      state.afkAmbientStarted = true;
+      unlockAudio();
+      audio.volume = afkVolumeForElapsed(elapsed);
+      var p = audio.play();
+      if (p && typeof p.catch === "function") {
+        p.catch(function () { /* precisa de gesto; proxima acao destrava */ });
+      }
+    } else if (state.afkAmbientAudio) {
+      try {
+        state.afkAmbientAudio.volume = afkVolumeForElapsed(elapsed);
+        if (state.afkAmbientAudio.paused) {
+          state.afkAmbientAudio.play().catch(function () { /* ignore */ });
+        }
+      } catch (e) { /* ignore */ }
+    }
+  }
+
+  function renderAfk() {
+    var elapsed = afkElapsedMs();
+    var left = Math.max(0, AFK_TOTAL_MS - elapsed);
+    var progress = clamp(1 - elapsed / AFK_TOTAL_MS, 0, 1);
+
+    if (els.afkFill) els.afkFill.style.width = (progress * 100).toFixed(2) + "%";
+    if (els.afkTime) els.afkTime.textContent = formatTime(left);
+
+    var warn = elapsed >= AFK_WARN_MS;
+    var danger = elapsed >= AFK_TOTAL_MS;
+    if (els.afkWrap) {
+      els.afkWrap.classList.toggle("warn", warn && !danger && !state.afkPaused);
+      els.afkWrap.classList.toggle("danger", danger && !state.afkPaused);
+      els.afkWrap.classList.toggle("is-paused", state.afkPaused);
+    }
+
+    updateAfkAmbient(elapsed);
+    updateAfkPauseButton();
+
+    if (els.afkStatus) {
+      if (state.afkPaused) {
+        els.afkStatus.textContent = "Pausado — tempo congelado";
+      } else if (danger) {
+        var label = AFK_LABELS[state.afkAmbientKind] || "ambiente";
+        els.afkStatus.textContent =
+          formatTime(AFK_TOTAL_MS) + " — risco de kick! Som: " + label + " (aja no jogo)";
+      } else if (warn) {
+        var labelWarn = AFK_LABELS[state.afkAmbientKind] || "ambiente";
+        els.afkStatus.textContent =
+          "Quase AFK — " + labelWarn + " subindo o volume";
+      } else {
+        els.afkStatus.textContent = "Ativo — qualquer ação reinicia";
+      }
+    }
+  }
+
+  function pauseAfk() {
+    if (state.afkPaused) return;
+    state.afkPausedElapsedMs = afkElapsedMs();
+    state.afkPaused = true;
+    pauseAfkAmbientOnly();
+    renderAfk();
+  }
+
+  function resumeAfk() {
+    if (!state.afkPaused) return;
+    state.afkStartedAt = performance.now() - (state.afkPausedElapsedMs || 0);
+    state.afkPaused = false;
+    renderAfk();
+  }
+
+  function toggleAfkPause() {
+    unlockAudio();
+    if (state.afkPaused) resumeAfk();
+    else pauseAfk();
+  }
+
+  function bumpAntiAfk() {
+    state.afkPaused = false;
+    state.afkPausedElapsedMs = 0;
+    state.afkStartedAt = performance.now();
+    stopAfkAmbient();
+    renderAfk();
+  }
+
+  function tickAfk() {
+    renderAfk();
+    state.afkRaf = requestAnimationFrame(tickAfk);
+  }
+
+  function startAfkLoop() {
+    if (!state.afkStartedAt) state.afkStartedAt = performance.now();
+    if (state.afkRaf) cancelAnimationFrame(state.afkRaf);
+    state.afkRaf = requestAnimationFrame(tickAfk);
+  }
+
   function playAudioClip(audio) {
     if (!audio) return;
     try {
@@ -971,6 +1168,7 @@
 
   function startCycle() {
     unlockAudio(); // libera audio no clique (Chrome)
+    bumpAntiAfk();
     if (state.raf) cancelAnimationFrame(state.raf);
     state.raf = 0;
     state.paused = false;
@@ -1016,6 +1214,7 @@
       if (els.statusText) els.statusText.textContent = "Sem fome - mana parada";
       updatePauseButton();
     }
+    bumpAntiAfk();
     saveSettings();
   }
 
@@ -1032,6 +1231,7 @@
     state.hungerAlertPlayed = false;
     renderIdle();
     renderHunger();
+    bumpAntiAfk();
     saveSettings();
   }
 
@@ -1070,9 +1270,15 @@
     if (els.btnPause) els.btnPause.onclick = function () { togglePause(); };
     if (els.btnReset) els.btnReset.onclick = function () { resetCycle(); };
     if (els.btnPip) els.btnPip.onclick = function () { openMiniwindow(); };
+    if (els.btnAfkPause) els.btnAfkPause.onclick = function () { toggleAfkPause(); };
     if (els.btnManaUp) els.btnManaUp.onclick = function () { nudgeMana(1); };
     if (els.btnManaDown) els.btnManaDown.onclick = function () { nudgeMana(-1); };
-    if (els.btnBell) els.btnBell.onclick = function () { playDing(); };
+    if (els.btnBell) {
+      els.btnBell.onclick = function () {
+        bumpAntiAfk();
+        playDing();
+      };
+    }
     if (els.btnMeat) els.btnMeat.onclick = function () { eatFood("meat"); };
     if (els.btnHam) els.btnHam.onclick = function () { eatFood("ham"); };
     if (els.btnHungerSfx) {
@@ -1119,6 +1325,7 @@
         btn.onclick = function () {
           state.vocation = btn.getAttribute("data-voc") || "druid";
           if (!REGEN[state.vocation]) state.vocation = "druid";
+          bumpAntiAfk();
           syncInputs();
           saveSettings();
           if (!state.running) renderIdle();
@@ -1575,6 +1782,8 @@
     restoreManaSession();
     renderHunger();
     startHungerLoop();
+    bumpAntiAfk();
+    startAfkLoop();
     startPresence();
     window.addEventListener("beforeunload", saveSettings);
     window.addEventListener("pagehide", saveSettings);

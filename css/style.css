@@ -492,6 +492,110 @@ body::before {
   font-weight: 600;
 }
 
+.afk-wrap {
+  width: min(560px, 100%);
+  display: grid;
+  gap: 0.28rem;
+  padding: 0.35rem 0.15rem 0.1rem;
+}
+
+.afk-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: clamp(0.72rem, 1.7vh, 0.85rem);
+  color: var(--muted);
+}
+
+.afk-meta-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.afk-label {
+  font-family: var(--font-display);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 0.78em;
+}
+
+.afk-time {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: #d7eee4;
+}
+
+.afk-pause-btn {
+  appearance: none;
+  border: 1px solid rgba(140, 190, 170, 0.28);
+  background: rgba(14, 28, 24, 0.88);
+  color: #d8fbff;
+  font: 600 0.68rem/1 var(--font-ui);
+  letter-spacing: 0.02em;
+  padding: 0.28rem 0.5rem;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+}
+
+.afk-pause-btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(42, 212, 239, 0.45);
+}
+
+.afk-pause-btn.is-paused {
+  border-color: rgba(255, 213, 154, 0.45);
+  color: #ffd59a;
+}
+
+.afk-wrap.is-paused .afk-fill {
+  opacity: 0.55;
+}
+
+.afk-track {
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(8, 16, 14, 0.7);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.afk-fill {
+  height: 100%;
+  width: 100%;
+  border-radius: inherit;
+  transform-origin: left center;
+  background: linear-gradient(90deg, #2a8f6e, #7dffb3);
+  transition: width 0.2s linear, background 0.35s ease;
+}
+
+.afk-wrap.warn .afk-fill {
+  background: linear-gradient(90deg, #b85a22, #ffd59a);
+}
+
+.afk-wrap.danger .afk-fill {
+  background: linear-gradient(90deg, #a33b2a, #ff8f6b);
+}
+
+.afk-wrap.warn .afk-time,
+.afk-wrap.warn .afk-status {
+  color: #ffd59a;
+}
+
+.afk-wrap.danger .afk-time,
+.afk-wrap.danger .afk-status {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.afk-status {
+  font-size: clamp(0.68rem, 1.5vh, 0.78rem);
+  color: var(--muted);
+  line-height: 1.3;
+}
+
 .controls {
   display: flex;
   flex-wrap: wrap;
@@ -841,6 +945,30 @@ body.pip-mode .mana-line,
 body.pip-mode .hunger-line {
   font-size: clamp(0.65rem, 2.2vh, 0.85rem);
   margin-top: 0.1rem;
+}
+
+body.pip-mode .afk-wrap {
+  width: 100%;
+  padding: 0.15rem 0 0;
+  gap: 0.18rem;
+}
+
+body.pip-mode .afk-status {
+  display: none;
+}
+
+body.pip-mode .afk-meta {
+  font-size: clamp(0.62rem, 2vh, 0.75rem);
+}
+
+body.pip-mode .afk-pause-btn {
+  padding: 0.18rem 0.38rem;
+  font-size: 0.6rem;
+  border-radius: 5px;
+}
+
+body.pip-mode .afk-track {
+  height: 5px;
 }
 
 body.pip-mode .controls {

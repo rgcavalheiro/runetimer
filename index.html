@@ -128,6 +128,20 @@
         </div>
       </div>
 
+      <div class="afk-wrap" id="afkWrap" aria-live="polite">
+        <div class="afk-meta">
+          <span class="afk-label">Anti-AFK</span>
+          <div class="afk-meta-right">
+            <span class="afk-time" id="afkTime">15:00</span>
+            <button type="button" class="afk-pause-btn" id="btnAfkPause" title="Pausar / continuar anti-AFK">Pause</button>
+          </div>
+        </div>
+        <div class="afk-track" aria-hidden="true">
+          <div class="afk-fill" id="afkFill"></div>
+        </div>
+        <div class="afk-status" id="afkStatus">Ativo — qualquer ação reinicia</div>
+      </div>
+
       <div class="controls">
         <button type="button" class="btn btn-primary" id="btnStart">Craftar</button>
         <button type="button" class="btn btn-ghost" id="btnPause" disabled>Pause</button>
