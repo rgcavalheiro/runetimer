@@ -13,6 +13,17 @@ function setCors(req, res) {
   res.setHeader("Cache-Control", "no-store");
 }
 
+function parseBody(req) {
+  if (typeof req.body === "string") {
+    try {
+      return JSON.parse(req.body);
+    } catch {
+      return null;
+    }
+  }
+  return req.body || {};
+}
+
 module.exports = async function handler(req, res) {
   setCors(req, res);
 
@@ -29,24 +40,28 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: "misconfigured" });
   }
 
-  const body = typeof req.body === "string"
-    ? (() => { try { return JSON.parse(req.body); } catch { return null; } })()
-    : (req.body || {});
-
+  const body = parseBody(req);
   const sessionId = body && body.sessionId ? String(body.sessionId).trim() : "";
   if (!UUID_RE.test(sessionId)) {
     return res.status(400).json({ error: "invalid_session" });
   }
 
+  const leave = !!(body && (body.leave === true || body.action === "leave"));
+
   try {
     const sql = neon(databaseUrl);
-    const rows = await sql`SELECT presence_heartbeat(${sessionId}::uuid) AS online`;
+    const rows = leave
+      ? await sql`SELECT presence_leave(${sessionId}::uuid) AS online`
+      : await sql`SELECT presence_heartbeat(${sessionId}::uuid) AS online`;
     const online = rows && rows[0] ? Number(rows[0].online) : 0;
     return res.status(200).json({
       online: Number.isFinite(online) ? online : 0
     });
   } catch (err) {
-    console.error("presence_heartbeat failed", err && err.message ? err.message : err);
+    console.error(
+      leave ? "presence_leave failed" : "presence_heartbeat failed",
+      err && err.message ? err.message : err
+    );
     return res.status(502).json({ error: "upstream" });
   }
 };

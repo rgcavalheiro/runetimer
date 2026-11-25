@@ -1406,10 +1406,11 @@
     });
   }
 
-  // Presenca online via endpoint HTTP (segredo fica no worker, nunca no browser)
+  // Presenca online via endpoint HTTP (segredo fica no servidor, nunca no browser)
   var PRESENCE_PING_MS = 25000;
   var presenceTimer = 0;
   var presenceSessionId = "";
+  var presenceLeft = false;
 
   function presenceUrl() {
     var cfg = window.RUNETIMER_CONFIG || {};
@@ -1463,20 +1464,26 @@
     }
   }
 
+  function newPresenceId() {
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+      var r = (Math.random() * 16) | 0;
+      var v = c === "x" ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
+  }
+
   function getPresenceSessionId() {
+    // localStorage: mesmo browser = mesma pessoa (reabrir nao inventa ID novo)
     var key = "runetimer-presence-id";
     try {
-      var saved = sessionStorage.getItem(key);
-      if (saved && saved.length > 10) return saved;
-      var id =
-        window.crypto && crypto.randomUUID
-          ? crypto.randomUUID()
-          : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
-              var r = (Math.random() * 16) | 0;
-              var v = c === "x" ? r : (r & 0x3) | 0x8;
-              return v.toString(16);
-            });
-      sessionStorage.setItem(key, id);
+      var saved = localStorage.getItem(key) || sessionStorage.getItem(key);
+      if (saved && saved.length > 10) {
+        localStorage.setItem(key, saved);
+        return saved;
+      }
+      var id = newPresenceId();
+      localStorage.setItem(key, id);
       return id;
     } catch (e) {
       return "00000000-0000-4000-8000-000000000001";
@@ -1497,6 +1504,7 @@
     }
     try {
       if (!presenceSessionId) presenceSessionId = getPresenceSessionId();
+      presenceLeft = false;
       var res = await fetch(url, {
         method: "POST",
         headers: { "content-type": "application/json", accept: "application/json" },
@@ -1514,6 +1522,33 @@
     }
   }
 
+  function leavePresence() {
+    if (presenceLeft) return;
+    var url = presenceUrl();
+    if (!url) return;
+    if (!/^https?:/i.test(window.location.protocol)) return;
+    if (!presenceSessionId) presenceSessionId = getPresenceSessionId();
+    presenceLeft = true;
+    var payload = JSON.stringify({ sessionId: presenceSessionId, leave: true });
+    try {
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon(url, new Blob([payload], { type: "application/json" }));
+        return;
+      }
+    } catch (e) { /* fallback abaixo */ }
+    try {
+      fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: "application/json" },
+        body: payload,
+        mode: "cors",
+        cache: "no-store",
+        credentials: "omit",
+        keepalive: true
+      }).catch(function () { /* ignore */ });
+    } catch (e) { /* ignore */ }
+  }
+
   function startPresence() {
     ensurePresenceUi(document);
     syncPresenceVisibility();
@@ -1522,8 +1557,14 @@
     if (presenceTimer) clearInterval(presenceTimer);
     presenceTimer = setInterval(pingPresence, PRESENCE_PING_MS);
     document.addEventListener("visibilitychange", function () {
-      if (document.visibilityState === "visible") pingPresence();
+      if (document.visibilityState === "visible") {
+        presenceLeft = false;
+        pingPresence();
+      }
     });
+    // fecha aba/janela: tira do contador na hora (nao espera TTL)
+    window.addEventListener("pagehide", leavePresence);
+    window.addEventListener("beforeunload", leavePresence);
   }
 
   function init() {
