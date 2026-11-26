@@ -13,14 +13,15 @@
 </head>
 <body>
   <div class="app" id="app">
-    <header class="header">
+    <header class="header" data-tour="brand">
       <h1 class="brand">RuneTimer</h1>
       <p class="tagline">mana regenerando, runas esperando</p>
+      <button type="button" class="btn-tutorial" id="btnTutorial" title="Ver tutorial passo a passo">Tutorial</button>
     </header>
 
     <main class="stage">
       <div class="vessels">
-        <div class="flask-wrap" id="flaskWrap" aria-live="polite">
+        <div class="flask-wrap" id="flaskWrap" data-tour="mana" aria-live="polite">
           <div class="vessel-label">Mana</div>
           <div class="flask-stage">
             <div class="potion" aria-label="Frasco de mana">
@@ -58,10 +59,10 @@
                 <g class="finish-mark"><line x1="82" y1="46" x2="90" y2="46" /><line x1="110" y1="46" x2="118" y2="46" /></g>
               </svg>
             </div>
-            <div class="mana-nudge" aria-label="Ajuste fino de mana">
+            <div class="mana-nudge" data-tour="mana-nudge" aria-label="Ajuste fino de mana">
               <button type="button" class="nudge-btn" id="btnManaUp" title="+1 mana">+</button>
               <button type="button" class="nudge-btn" id="btnManaDown" title="-1 mana">-</button>
-              <button type="button" class="nudge-btn nudge-bell" id="btnBell" title="Testar sino" aria-label="Testar sino"><span class="bell-icon"></span></button>
+              <button type="button" class="nudge-btn nudge-bell" id="btnBell" data-tour="bell" title="Testar sino" aria-label="Testar sino"><span class="bell-icon"></span></button>
             </div>
           </div>
           <div class="readout">
@@ -71,7 +72,7 @@
           </div>
         </div>
 
-        <div class="flask-wrap hunger-wrap" id="hungerWrap" aria-live="polite">
+        <div class="flask-wrap hunger-wrap" id="hungerWrap" data-tour="hunger" aria-live="polite">
           <div class="vessel-label">Fome</div>
           <div class="flask-stage">
             <div class="potion hunger-potion" aria-label="Frasco de fome">
@@ -105,7 +106,7 @@
                 <g class="finish-mark hunger-full-mark"><line x1="82" y1="46" x2="90" y2="46" /><line x1="110" y1="46" x2="118" y2="46" /></g>
               </svg>
             </div>
-            <div class="food-nudge" aria-label="Comidas">
+            <div class="food-nudge" data-tour="food" aria-label="Comidas">
               <button type="button" class="food-btn" id="btnMeat" title="Meat (+3 min)">
                 <img class="food-sprite" src="assets/meat.png?v=2" alt="Meat" width="28" height="28">
                 <span class="food-name">Meat</span>
@@ -114,7 +115,7 @@
                 <img class="food-sprite" src="assets/ham.png?v=2" alt="Ham" width="28" height="28">
                 <span class="food-name">Ham</span>
               </button>
-              <button type="button" class="nudge-btn nudge-hunger-sfx" id="btnHungerSfx" title="Testar som da fome" aria-label="Testar som da fome">
+              <button type="button" class="nudge-btn nudge-hunger-sfx" id="btnHungerSfx" data-tour="hunger-sfx" title="Testar som da fome" aria-label="Testar som da fome">
                 <span class="hunger-sfx-icon"></span>
               </button>
               <button type="button" class="nudge-btn nudge-hunger-reset" id="btnHungerReset" title="Resetar fome" aria-label="Resetar fome">R</button>
@@ -128,7 +129,7 @@
         </div>
       </div>
 
-      <div class="afk-wrap" id="afkWrap" aria-live="polite">
+      <div class="afk-wrap" id="afkWrap" data-tour="afk" aria-live="polite">
         <div class="afk-meta">
           <span class="afk-label">Anti-AFK</span>
           <div class="afk-meta-right">
@@ -142,35 +143,35 @@
         <div class="afk-status" id="afkStatus">Ativo — qualquer ação reinicia</div>
       </div>
 
-      <div class="controls">
-        <button type="button" class="btn btn-primary" id="btnStart">Craftar</button>
+      <div class="controls" data-tour="controls">
+        <button type="button" class="btn btn-primary" id="btnStart" data-tour="craft">Craftar</button>
         <button type="button" class="btn btn-ghost" id="btnPause" disabled>Pause</button>
         <button type="button" class="btn btn-ghost" id="btnReset" title="Resetar mana e fome">Reset</button>
-        <button type="button" class="btn btn-pip" id="btnPip" title="Abrir mini janela por cima">Miniwindow</button>
+        <button type="button" class="btn btn-pip" id="btnPip" data-tour="pip" title="Abrir mini janela por cima">Miniwindow</button>
       </div>
     </main>
 
-    <section class="settings" id="settings">
+    <section class="settings" id="settings" data-tour="settings">
       <h2>Configuração</h2>
       <div class="grid">
-        <label>
+        <label data-tour="cfg-runes">
           <span>Runas por ciclo</span>
           <input type="number" id="cfgRunes" min="1" max="100" value="3">
         </label>
-        <label>
+        <label data-tour="cfg-mana">
           <span>Mana por runa</span>
           <input type="number" id="cfgMana" min="1" max="1000" value="100">
         </label>
-        <label class="vocation">
+        <label class="vocation" data-tour="vocation">
           <span>Vocação</span>
           <div class="seg seg-vocs" role="group" aria-label="Vocação">
-            <button type="button" class="seg-btn active" data-voc="druid">Druid</button>
-            <button type="button" class="seg-btn" data-voc="elder">Elder Druid</button>
+            <button type="button" class="seg-btn active" data-voc="mage">Mage</button>
+            <button type="button" class="seg-btn" data-voc="promoted">Promoted Mage</button>
             <button type="button" class="seg-btn" data-voc="paladin">Paladin</button>
             <button type="button" class="seg-btn" data-voc="royal">Royal Paladin</button>
           </div>
         </label>
-        <label>
+        <label data-tour="cfg-food">
           <span>Meat (segundos)</span>
           <input type="number" id="cfgMeatSec" min="1" max="3600" value="180">
         </label>
@@ -185,7 +186,7 @@
       <p class="regen-hint" id="regenHint"></p>
     </section>
 
-    <section class="settings sync" id="syncBox">
+    <section class="settings sync" id="syncBox" data-tour="sync">
       <h2>Sincronizar com o jogo</h2>
       <div class="grid grid-2">
         <label>
@@ -200,6 +201,23 @@
       <p class="sync-hint">Preenche o que você vê no client e aperta sincronizar. A mana atual manda no progresso; o tempo ajuda a bater o relógio.</p>
       <button type="button" class="btn btn-primary btn-block" id="btnSync">Sincronizar</button>
     </section>
+  </div>
+
+  <div class="tour" id="tourOverlay" hidden aria-hidden="true">
+    <div class="tour-backdrop" id="tourBackdrop"></div>
+    <div class="tour-spot" id="tourSpot" aria-hidden="true"></div>
+    <div class="tour-card" id="tourCard" role="dialog" aria-modal="true" aria-labelledby="tourTitle">
+      <div class="tour-progress" id="tourProgress">1 / 1</div>
+      <h3 class="tour-title" id="tourTitle"></h3>
+      <p class="tour-text" id="tourText"></p>
+      <div class="tour-actions">
+        <button type="button" class="tour-btn tour-btn-ghost" id="tourSkip">Pular</button>
+        <div class="tour-nav">
+          <button type="button" class="tour-btn tour-btn-ghost" id="tourPrev">Voltar</button>
+          <button type="button" class="tour-btn tour-btn-primary" id="tourNext">Próximo</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="online-presence" id="onlinePresence" title="Pessoas online agora" aria-live="polite" hidden>

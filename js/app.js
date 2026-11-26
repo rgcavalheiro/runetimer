@@ -3,13 +3,20 @@
 
   // Tibia 7.1 / classic: 1 mana por tick (nao o 2/3s do tibia moderno)
   var REGEN = {
-    druid: { mana: 1, seconds: 6, label: "Druid 7.1: 1 mana a cada 6s" },
-    elder: { mana: 1, seconds: 4, label: "Elder Druid 7.1: 1 mana a cada 4s" },
+    mage: { mana: 1, seconds: 6, label: "Mage 7.1: 1 mana a cada 6s" },
+    promoted: { mana: 1, seconds: 4, label: "Promoted Mage 7.1: 1 mana a cada 4s" },
     paladin: { mana: 1, seconds: 8, label: "Paladin 7.1: 1 mana a cada 8s" },
     royal: { mana: 1, seconds: 6, label: "Royal Paladin 7.1: 1 mana a cada 6s" }
   };
 
+  // nomes antigos salvos no localStorage
+  var VOCATION_ALIASES = {
+    druid: "mage",
+    elder: "promoted"
+  };
+
   var STORAGE_KEY = "runetimer-settings-v4";
+  var TOUR_DONE_KEY = "runetimer-tour-done-v1";
   // liquido sobe ate a faixa "fim" (nao ate a boca)
   var LIQUID_BOTTOM = 262;
   var LIQUID_TOP = 46;
@@ -30,7 +37,7 @@
 
   // Tibia classic: Meat 180s, Ham 360s, full 1200s (20 min) ~ 3 ham
   var state = {
-    vocation: "druid",
+    vocation: "mage",
     runes: 3,
     manaPerRune: 100,
     meatSec: 180,
@@ -106,8 +113,15 @@
       afkFill: doc.getElementById("afkFill"),
       afkTime: doc.getElementById("afkTime"),
       afkStatus: doc.getElementById("afkStatus"),
-      btnAfkPause: doc.getElementById("btnAfkPause")
+      btnAfkPause: doc.getElementById("btnAfkPause"),
+      btnTutorial: doc.getElementById("btnTutorial")
     };
+  }
+
+  function normalizeVocation(voc) {
+    if (!voc) return "mage";
+    if (VOCATION_ALIASES[voc]) voc = VOCATION_ALIASES[voc];
+    return REGEN[voc] ? voc : "mage";
   }
 
   function totalMana() {
@@ -231,8 +245,8 @@
       }
       if (!raw) return;
       var data = JSON.parse(raw);
-      if (REGEN[data.vocation]) {
-        state.vocation = data.vocation;
+      if (data.vocation) {
+        state.vocation = normalizeVocation(data.vocation);
       }
       if (Number.isFinite(data.runes) && data.runes > 0) state.runes = data.runes | 0;
       if (Number.isFinite(data.manaPerRune) && data.manaPerRune > 0) {
@@ -1323,8 +1337,7 @@
     if (els.segBtns) {
       els.segBtns.forEach(function (btn) {
         btn.onclick = function () {
-          state.vocation = btn.getAttribute("data-voc") || "druid";
-          if (!REGEN[state.vocation]) state.vocation = "druid";
+          state.vocation = normalizeVocation(btn.getAttribute("data-voc"));
           bumpAntiAfk();
           syncInputs();
           saveSettings();
@@ -1332,6 +1345,279 @@
         };
       });
     }
+    if (els.btnTutorial) {
+      els.btnTutorial.onclick = function () { startTour(true); };
+    }
+  }
+
+  /* ========== Tutorial passo a passo ========== */
+  var tour = {
+    active: false,
+    index: 0,
+    steps: [
+      {
+        sel: '[data-tour="brand"]',
+        title: "Bem-vindo ao RuneTimer",
+        text: "Este app controla o tempo de regen de mana e a fome enquanto você crafta runas no Tibia classic. Vamos ver cada parte."
+      },
+      {
+        sel: '[data-tour="mana"]',
+        title: "Frasco de mana",
+        text: "Mostra o progresso da regeneração. O liquido sobe até a mana ficar cheia para o ciclo de runas que você configurou."
+      },
+      {
+        sel: '[data-tour="mana-nudge"]',
+        title: "Ajuste fino (+ / -)",
+        text: "Soma ou tira 1 de mana no frasco. Útil quando o client e o timer ficam um pouquinho dessincronizados."
+      },
+      {
+        sel: '[data-tour="bell"]',
+        title: "Sino",
+        text: "Toca um alerta quando a mana enche. Clique aqui pra testar o som antes de craftar de verdade."
+      },
+      {
+        sel: '[data-tour="hunger"]',
+        title: "Frasco de fome",
+        text: "Espelha a fome do personagem. Sem fome a mana para de regenerar — igual no Tibia classic."
+      },
+      {
+        sel: '[data-tour="food"]',
+        title: "Meat e Ham",
+        text: "Meat adiciona ~3 min e Ham ~6 min de fome (ajustável na config). O botão R zera a fome; o ícone do meio testa o som de alerta."
+      },
+      {
+        sel: '[data-tour="afk"]',
+        title: "Anti-AFK",
+        text: "Conta ~15 min sem ação (desconexão classic). Qualquer clique no app reinicia. Pause congela o relógio se você for sair um pouco."
+      },
+      {
+        sel: '[data-tour="craft"]',
+        title: "Craftar",
+        text: "Inicia o ciclo: começa em 1 de mana e regenera até encher. Quando completar, o sino toca e o botão vira De novo."
+      },
+      {
+        sel: '[data-tour="controls"]',
+        title: "Pause e Reset",
+        text: "Pause congela a regen. Reset volta mana e fome ao estado inicial do ciclo."
+      },
+      {
+        sel: '[data-tour="pip"]',
+        title: "Miniwindow",
+        text: "Abre uma janelinha sempre por cima (Picture-in-Picture) pra acompanhar enquanto joga. Funciona melhor em HTTPS."
+      },
+      {
+        sel: '[data-tour="cfg-runes"]',
+        title: "Runas por ciclo",
+        text: "Quantas runas você vai craftar de uma vez. Junto com a mana por runa, define o total que o frasco precisa encher."
+      },
+      {
+        sel: '[data-tour="cfg-mana"]',
+        title: "Mana por runa",
+        text: "Custo de mana de cada runa. Ex.: 3 runas × 100 mana = 300 de mana no ciclo."
+      },
+      {
+        sel: '[data-tour="vocation"]',
+        title: "Vocação",
+        text: "Define a velocidade de regen: Mage (6s), Promoted Mage (4s), Paladin (8s) ou Royal Paladin (6s)."
+      },
+      {
+        sel: '[data-tour="cfg-food"]',
+        title: "Tempos de comida",
+        text: "Ajuste os segundos do Meat, Ham e o teto de fome se o seu servidor classic usar valores diferentes do padrão."
+      },
+      {
+        sel: '[data-tour="sync"]',
+        title: "Sincronizar",
+        text: "Digite a mana atual (e opcionalmente o tempo) que você vê no client e aperte Sincronizar pra alinhar o timer com o jogo."
+      }
+    ]
+  };
+
+  function tourEls() {
+    return {
+      overlay: document.getElementById("tourOverlay"),
+      backdrop: document.getElementById("tourBackdrop"),
+      spot: document.getElementById("tourSpot"),
+      card: document.getElementById("tourCard"),
+      progress: document.getElementById("tourProgress"),
+      title: document.getElementById("tourTitle"),
+      text: document.getElementById("tourText"),
+      skip: document.getElementById("tourSkip"),
+      prev: document.getElementById("tourPrev"),
+      next: document.getElementById("tourNext")
+    };
+  }
+
+  function markTourDone() {
+    try { localStorage.setItem(TOUR_DONE_KEY, "1"); } catch (e) { /* ignore */ }
+  }
+
+  function isTourDone() {
+    try { return localStorage.getItem(TOUR_DONE_KEY) === "1"; } catch (e) { return false; }
+  }
+
+  function endTour() {
+    var t = tourEls();
+    tour.active = false;
+    document.body.classList.remove("tour-open");
+    if (t.overlay) {
+      t.overlay.hidden = true;
+      t.overlay.setAttribute("aria-hidden", "true");
+    }
+    if (t.spot) {
+      t.spot.style.cssText = "";
+      t.spot.classList.remove("is-on");
+    }
+    if (t.overlay) t.overlay.classList.remove("has-spot");
+    markTourDone();
+    window.removeEventListener("resize", onTourRelayout);
+    window.removeEventListener("scroll", onTourRelayout, true);
+    window.removeEventListener("keydown", onTourKey);
+  }
+
+  function onTourRelayout() {
+    if (tour.active) layoutTourStep();
+  }
+
+  function startTour(fromButton) {
+    if (document.body.classList.contains("pip-mode")) return;
+    tour.active = true;
+    tour.index = 0;
+    document.body.classList.add("tour-open");
+    var t = tourEls();
+    if (t.overlay) {
+      t.overlay.hidden = false;
+      t.overlay.setAttribute("aria-hidden", "false");
+    }
+    if (t.skip) t.skip.onclick = function () { endTour(); };
+    if (t.prev) {
+      t.prev.onclick = function () {
+        if (tour.index > 0) {
+          tour.index -= 1;
+          showTourStep();
+        }
+      };
+    }
+    if (t.next) {
+      t.next.onclick = function () {
+        if (tour.index >= tour.steps.length - 1) {
+          endTour();
+        } else {
+          tour.index += 1;
+          showTourStep();
+        }
+      };
+    }
+    if (t.backdrop) {
+      t.backdrop.onclick = function () { /* nao fecha no clique do fundo */ };
+    }
+    window.addEventListener("resize", onTourRelayout);
+    window.addEventListener("scroll", onTourRelayout, true);
+    window.addEventListener("keydown", onTourKey);
+    showTourStep();
+    if (fromButton) { /* silencio */ }
+  }
+
+  function onTourKey(e) {
+    if (!tour.active) return;
+    if (e.key === "Escape") {
+      endTour();
+    } else if (e.key === "ArrowRight" || e.key === "Enter") {
+      if (tour.index >= tour.steps.length - 1) endTour();
+      else {
+        tour.index += 1;
+        showTourStep();
+      }
+    } else if (e.key === "ArrowLeft") {
+      if (tour.index > 0) {
+        tour.index -= 1;
+        showTourStep();
+      }
+    }
+  }
+
+  function showTourStep() {
+    var step = tour.steps[tour.index];
+    var t = tourEls();
+    if (!step || !t.card) return;
+
+    if (t.progress) t.progress.textContent = (tour.index + 1) + " / " + tour.steps.length;
+    if (t.title) t.title.textContent = step.title;
+    if (t.text) t.text.textContent = step.text;
+    if (t.prev) t.prev.disabled = tour.index === 0;
+    if (t.next) t.next.textContent = tour.index >= tour.steps.length - 1 ? "Concluir" : "Próximo";
+
+    var target = document.querySelector(step.sel);
+    if (target) {
+      target.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+    }
+    // espera o scroll assentar um pouco
+    requestAnimationFrame(function () {
+      setTimeout(layoutTourStep, 180);
+    });
+  }
+
+  function layoutTourStep() {
+    var step = tour.steps[tour.index];
+    var t = tourEls();
+    if (!step || !t.spot || !t.card || !tour.active) return;
+
+    var target = document.querySelector(step.sel);
+    var pad = 10;
+    var vw = window.innerWidth;
+    var vh = window.innerHeight;
+
+    if (!target) {
+      t.spot.classList.remove("is-on");
+      t.spot.style.cssText = "";
+      if (t.overlay) t.overlay.classList.remove("has-spot");
+      positionTourCard(null, t.card, vw, vh);
+      return;
+    }
+
+    var r = target.getBoundingClientRect();
+    var top = Math.max(8, r.top - pad);
+    var left = Math.max(8, r.left - pad);
+    var width = Math.min(vw - left - 8, r.width + pad * 2);
+    var height = Math.min(vh - top - 8, r.height + pad * 2);
+
+    t.spot.classList.add("is-on");
+    if (t.overlay) t.overlay.classList.add("has-spot");
+    t.spot.style.top = top + "px";
+    t.spot.style.left = left + "px";
+    t.spot.style.width = Math.max(24, width) + "px";
+    t.spot.style.height = Math.max(24, height) + "px";
+
+    positionTourCard(r, t.card, vw, vh);
+  }
+
+  function positionTourCard(rect, card, vw, vh) {
+    card.style.visibility = "hidden";
+    card.style.left = "0";
+    card.style.top = "0";
+    var cw = card.offsetWidth || 300;
+    var ch = card.offsetHeight || 180;
+    var gap = 14;
+    var left = (vw - cw) / 2;
+    var top = vh * 0.28;
+
+    if (rect) {
+      var below = rect.bottom + gap;
+      var above = rect.top - ch - gap;
+      if (below + ch < vh - 12) {
+        top = below;
+      } else if (above > 12) {
+        top = above;
+      } else {
+        top = Math.max(12, Math.min(vh - ch - 12, rect.top));
+      }
+      left = rect.left + rect.width / 2 - cw / 2;
+      left = Math.max(12, Math.min(vw - cw - 12, left));
+    }
+
+    card.style.left = left + "px";
+    card.style.top = top + "px";
+    card.style.visibility = "visible";
   }
 
   function copyStyles(toDoc) {
@@ -1803,6 +2089,10 @@
     scheduleFit();
     setTimeout(scheduleFit, 120);
     setTimeout(scheduleFit, 500);
+    // primeira visita: abre o tutorial sozinho
+    if (!isTourDone()) {
+      setTimeout(function () { startTour(false); }, 700);
+    }
   }
 
   init();

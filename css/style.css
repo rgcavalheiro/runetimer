@@ -70,6 +70,29 @@ body::before {
 .header {
   text-align: center;
   animation: rise 0.7s ease both;
+  position: relative;
+}
+
+.btn-tutorial {
+  appearance: none;
+  margin-top: 0.55rem;
+  border: 1px solid rgba(140, 190, 170, 0.32);
+  background: rgba(14, 28, 24, 0.72);
+  color: #cfe8dc;
+  font: 600 0.78rem/1 var(--font-ui);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.42rem 0.85rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease, color 0.12s ease;
+}
+
+.btn-tutorial:hover {
+  transform: translateY(-1px);
+  border-color: rgba(42, 212, 239, 0.5);
+  color: #e7fff6;
+  background: rgba(20, 48, 42, 0.92);
 }
 
 .brand {
@@ -817,6 +840,8 @@ body.pip-mode .header {
 }
 
 body.pip-mode .header .tagline,
+body.pip-mode .btn-tutorial,
+body.pip-mode #tourOverlay,
 body.pip-mode #settings,
 body.pip-mode .vessel-label,
 body.pip-mode .status,
@@ -1121,4 +1146,152 @@ body.pip-mode .online-presence {
 body.pip-mode .online-presence-icon {
   width: 11px;
   height: 11px;
+}
+
+/* Tutorial (coachmark / spotlight) */
+body.tour-open {
+  overflow: hidden;
+}
+
+.tour[hidden] {
+  display: none !important;
+}
+
+.tour {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.tour-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(4, 10, 8, 0.72);
+  pointer-events: auto;
+  animation: tourFade 0.25s ease both;
+  transition: opacity 0.2s ease;
+}
+
+.tour.has-spot .tour-backdrop {
+  opacity: 0;
+}
+
+.tour-spot {
+  position: fixed;
+  z-index: 1001;
+  border-radius: 12px;
+  box-shadow:
+    0 0 0 9999px rgba(4, 10, 8, 0.72),
+    0 0 0 2px rgba(42, 212, 239, 0.55),
+    0 0 24px rgba(42, 212, 239, 0.28);
+  pointer-events: none;
+  opacity: 0;
+  transition: top 0.28s ease, left 0.28s ease, width 0.28s ease, height 0.28s ease, opacity 0.2s ease;
+}
+
+.tour-spot.is-on {
+  opacity: 1;
+}
+
+.tour-card {
+  position: fixed;
+  z-index: 1002;
+  width: min(340px, calc(100vw - 24px));
+  padding: 0.95rem 1rem 0.85rem;
+  border-radius: 14px;
+  border: 1px solid rgba(140, 190, 170, 0.28);
+  background:
+    linear-gradient(165deg, rgba(22, 42, 36, 0.98), rgba(12, 24, 20, 0.98));
+  color: var(--ink);
+  pointer-events: auto;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  animation: tourPop 0.28s ease both;
+}
+
+.tour-progress {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.35rem;
+}
+
+.tour-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #f2fff8;
+}
+
+.tour-text {
+  margin: 0.45rem 0 0.85rem;
+  color: #c5ddd2;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.tour-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.tour-nav {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.tour-btn {
+  appearance: none;
+  border: 1px solid rgba(140, 190, 170, 0.28);
+  background: rgba(14, 28, 24, 0.88);
+  color: #d8fbff;
+  font: 600 0.8rem/1 var(--font-ui);
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+}
+
+.tour-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(42, 212, 239, 0.45);
+}
+
+.tour-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.tour-btn-primary {
+  background: linear-gradient(180deg, #1aa7bf, #0e7388);
+  border-color: rgba(158, 240, 255, 0.35);
+  color: #f2fffe;
+  min-width: 5.5rem;
+}
+
+.tour-btn-ghost {
+  background: transparent;
+  color: #b7d0c4;
+}
+
+@keyframes tourFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes tourPop {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }

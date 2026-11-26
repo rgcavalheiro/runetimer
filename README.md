@@ -11,7 +11,8 @@ Controla o tempo de regeneração de mana com um frasco que enche, avisa com sin
 | Feature | O que faz |
 |---|---|
 | Frasco de mana | Enche conforme a regen da vocação |
-| Vocações | Druid, Elder, Paladin, Royal Paladin |
+| Vocações | Mage, Promoted Mage, Paladin, Royal Paladin |
+| Tutorial | Tour passo a passo com spotlight nos controles |
 | Fome | Drena com o tempo; Meat (+3 min) e Ham (+6 min) |
 | Sem fome = sem regen | Igual no Tibia: mana para até você comer |
 | Sino | Alerta quando a mana enche |
@@ -59,8 +60,8 @@ Na miniwindow ficam os frascos, comidas, controles e o sync rápido de mana.
 - **Meat:** 180s (3 min)  
 - **Ham:** 360s (6 min)  
 - **Fome máxima:** 1200s (20 min) ≈ 3 Ham  
-- **Druid:** 1 mana / 6s  
-- **Elder Druid:** 1 mana / 4s  
+- **Mage:** 1 mana / 6s  
+- **Promoted Mage:** 1 mana / 4s  
 - **Paladin:** 1 mana / 8s  
 - **Royal Paladin:** 1 mana / 6s  
 
