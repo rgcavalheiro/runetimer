@@ -59,6 +59,7 @@
     hungerAudio: null,
     hungerAlertPlayed: false,
     syncDirty: false,
+    syncLocked: false,
     syncSnapMana: null,
     syncSnapElapsed: null,
     afkStartedAt: 0,
@@ -373,11 +374,13 @@
     if (els.cfgMeatSec) els.cfgMeatSec.value = String(state.meatSec);
     if (els.cfgHamSec) els.cfgHamSec.value = String(state.hamSec);
     if (els.cfgMaxFoodSec) els.cfgMaxFoodSec.value = String(state.maxFoodSec);
-    if (els.cfgCurrentMana && state._savedCurrentMana != null && state._savedCurrentMana !== "") {
-      els.cfgCurrentMana.value = String(state._savedCurrentMana);
-    }
-    if (els.cfgElapsed && state._savedElapsed) {
-      els.cfgElapsed.value = String(state._savedElapsed);
+    if (!isSyncEditing()) {
+      if (els.cfgCurrentMana && state._savedCurrentMana != null && state._savedCurrentMana !== "") {
+        els.cfgCurrentMana.value = String(state._savedCurrentMana);
+      }
+      if (els.cfgElapsed && state._savedElapsed) {
+        els.cfgElapsed.value = String(state._savedElapsed);
+      }
     }
     if (els.segBtns) {
       els.segBtns.forEach(function (btn) {
@@ -609,10 +612,52 @@
     return onlyNum * 60 * 1000;
   }
 
+  function syncOwnerDoc() {
+    if (els.cfgCurrentMana && els.cfgCurrentMana.ownerDocument) {
+      return els.cfgCurrentMana.ownerDocument;
+    }
+    return document;
+  }
+
+  function isSyncFieldFocused() {
+    var active = syncOwnerDoc().activeElement;
+    return !!(
+      active &&
+      (active === els.cfgCurrentMana || active === els.cfgElapsed)
+    );
+  }
+
+  function isSyncEditing() {
+    return !!(state.syncLocked || state.syncDirty || isSyncFieldFocused());
+  }
+
+  function lockSyncFields() {
+    state.syncLocked = true;
+  }
+
+  function unlockSyncFields() {
+    state.syncLocked = false;
+    state.syncDirty = false;
+    state.syncSnapMana = null;
+    state.syncSnapElapsed = null;
+  }
+
+  function maybeUnlockSyncFields() {
+    // espera o foco mudar (ex.: Mana atual -> Sincronizar) antes de liberar
+    setTimeout(function () {
+      if (isSyncFieldFocused()) return;
+      var active = syncOwnerDoc().activeElement;
+      if (active && active.id === "btnSync") return;
+      if (state.syncDirty || state.syncSnapMana != null) return;
+      state.syncLocked = false;
+    }, 0);
+  }
+
   function snapshotSyncInputs() {
     state.syncSnapMana = els.cfgCurrentMana ? els.cfgCurrentMana.value : "";
     state.syncSnapElapsed = els.cfgElapsed ? els.cfgElapsed.value : "";
     state.syncDirty = true;
+    state.syncLocked = true;
   }
 
   function readSyncInputs() {
@@ -656,7 +701,9 @@
     return { currentMana: currentMana, elapsedMs: elapsedMs, total: total, mps: mps };
   }
 
-  function writeSyncFields(mana, elapsedMs) {
+  function writeSyncFields(mana, elapsedMs, force) {
+    // enquanto o usuario edita, nenhum tick/processo sobrescreve os campos
+    if (!force && isSyncEditing()) return;
     if (els.cfgCurrentMana) els.cfgCurrentMana.value = String(Math.floor(mana));
     if (els.cfgElapsed) els.cfgElapsed.value = formatTime(elapsedMs);
   }
@@ -705,9 +752,7 @@
       state.paused = false;
       state.hungerBlocked = false;
       state.pausedElapsedMs = 0;
-      state.syncDirty = false;
-      state.syncSnapMana = null;
-      state.syncSnapElapsed = null;
+      unlockSyncFields();
       state.startedAt = performance.now() - state.durationMs;
       finishCycle();
       return;
@@ -716,9 +761,7 @@
     state.paused = false;
     state.pausedElapsedMs = cappedElapsed;
     state.ready = false;
-    state.syncDirty = false;
-    state.syncSnapMana = null;
-    state.syncSnapElapsed = null;
+    unlockSyncFields();
     setReady(false);
     applyManaVisual(cappedElapsed);
 
@@ -789,7 +832,8 @@
     var sync = readSyncInputs();
     var elapsedFromMana = (sync.currentMana / sync.mps) * 1000;
 
-    writeSyncFields(sync.currentMana, elapsedFromMana);
+    unlockSyncFields();
+    writeSyncFields(sync.currentMana, elapsedFromMana, true);
     saveSettings();
     bumpAntiAfk();
     resumeFromProgress(elapsedFromMana);
@@ -906,11 +950,7 @@
     if (els.statusText) els.statusText.textContent = "Regenerando mana...";
 
     // nao sobrescreve enquanto o usuario esta editando / vai sincronizar
-    var active = document.activeElement;
-    var editingSync =
-      active &&
-      (active.id === "cfgCurrentMana" || active.id === "cfgElapsed");
-    if (!editingSync && !state.syncDirty) writeSyncFields(mana, elapsed);
+    writeSyncFields(mana, elapsed);
 
     if (progress >= 1) {
       finishCycle();
@@ -1307,12 +1347,30 @@
       els.btnSync.onclick = function () { syncFromGame(); };
     }
     if (els.cfgCurrentMana) {
-      els.cfgCurrentMana.oninput = function () { state.syncDirty = true; };
-      els.cfgCurrentMana.onchange = function () { state.syncDirty = true; };
+      els.cfgCurrentMana.onpointerdown = lockSyncFields;
+      els.cfgCurrentMana.onfocus = lockSyncFields;
+      els.cfgCurrentMana.oninput = function () {
+        state.syncDirty = true;
+        state.syncLocked = true;
+      };
+      els.cfgCurrentMana.onchange = function () {
+        state.syncDirty = true;
+        state.syncLocked = true;
+      };
+      els.cfgCurrentMana.onblur = maybeUnlockSyncFields;
     }
     if (els.cfgElapsed) {
-      els.cfgElapsed.oninput = function () { state.syncDirty = true; };
-      els.cfgElapsed.onchange = function () { state.syncDirty = true; };
+      els.cfgElapsed.onpointerdown = lockSyncFields;
+      els.cfgElapsed.onfocus = lockSyncFields;
+      els.cfgElapsed.oninput = function () {
+        state.syncDirty = true;
+        state.syncLocked = true;
+      };
+      els.cfgElapsed.onchange = function () {
+        state.syncDirty = true;
+        state.syncLocked = true;
+      };
+      els.cfgElapsed.onblur = maybeUnlockSyncFields;
     }
     if (els.cfgRunes) {
       els.cfgRunes.oninput = readConfigFromInputs;
